@@ -1,0 +1,32 @@
+{
+  "name": "erc721-collection-template",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "compile": "yarn hardhat compile",
+    "test": "yarn hardhat test",
+    "size": "yarn hardhat size-contracts",
+    "coverage": "yarn hardhat coverage --network hardhat"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.7.3",
+    "erc721a": "^4.2.3"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.3",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.6",
+    "@nomiclabs/hardhat-ethers": "2.1.1",
+    "@nomiclabs/hardhat-etherscan": "^3.1.0",
+    "chai": "4.3.6",
+    "dotenv": "^16.0.2",
+    "ethers": "5.7.1",
+    "hardhat": "2.11.2",
+    "hardhat-contract-sizer": "^2.6.1",
+    "hardhat-gas-reporter": "^1.0.9",
+    "keccak256": "^1.0.6",
+    "merkletreejs": "^0.2.32",
+    "solhint": "^3.3.7",
+    "solidity-coverage": "^0.8.2"
+  }
+}
