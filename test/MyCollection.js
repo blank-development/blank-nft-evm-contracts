@@ -254,16 +254,16 @@ describe("MyCollection", function() {
       it("should reveal correctly if contract is not sealed", async function() {
         await myCollection.airdrop([whitelisted1.address], [1]);
 
-        expect(await myCollection.tokenURI(0)).to.equal(
-          "ipfs://QmSBxebqcuP8GyUxaFVEDqpsmbcjNMxg5y3i1UAHLkhHg5/0"
+        expect(await myCollection.tokenURI(1)).to.equal(
+          "ipfs://QmSBxebqcuP8GyUxaFVEDqpsmbcjNMxg5y3i1UAHLkhHg5/1"
         );
 
         await myCollection.reveal(
           "ipfs://QmbJxj9yTDhDHXYQUHjyz74GxP1VCwF3pkVWCvBTejF3kD/"
         );
 
-        expect(await myCollection.tokenURI(0)).to.equal(
-          "ipfs://QmbJxj9yTDhDHXYQUHjyz74GxP1VCwF3pkVWCvBTejF3kD/0"
+        expect(await myCollection.tokenURI(1)).to.equal(
+          "ipfs://QmbJxj9yTDhDHXYQUHjyz74GxP1VCwF3pkVWCvBTejF3kD/1"
         );
       });
 

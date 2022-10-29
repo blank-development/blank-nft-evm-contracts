@@ -164,4 +164,8 @@ contract MyCollection is ERC721A, ERC2981, Ownable {
     function _baseURI() internal view override returns (string memory) {
         return s_baseURI;
     }
+
+    function _startTokenId() internal view override returns (uint256) {
+        return 1;
+    }
 }
