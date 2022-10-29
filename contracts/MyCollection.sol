@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.15;
 
-import "erc721a/contracts/ERC721A.sol";
+import "erc721a/contracts/extensions/ERC721ABurnable.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -14,7 +14,7 @@ error MintLimitReached();
 error NotWhitelisted();
 error ContractSealed();
 
-contract MyCollection is ERC721A, ERC2981, Ownable {
+contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
     string private s_baseURI;
     bool public s_contractSealed = false;
 
@@ -153,7 +153,7 @@ contract MyCollection is ERC721A, ERC2981, Ownable {
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721A, ERC2981)
+        override(ERC2981, ERC721A, IERC721A)
         returns (bool)
     {
         return
