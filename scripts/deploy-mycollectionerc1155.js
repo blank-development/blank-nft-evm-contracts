@@ -19,17 +19,7 @@ async function main() {
     "Success! MyCollectionERC1155 was deployed to: ",
     myCollectionERC1155.address
   );
-
-  await sleep(5000);
-  await run("verify:verify", {
-    address: myCollectionERC1155.address,
-    constructorArguments: [initialURIFormatted],
-  });
 }
-
-const sleep = (milliseconds) => {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-};
 
 main()
   .then(() => process.exit(0))

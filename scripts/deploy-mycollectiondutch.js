@@ -21,17 +21,7 @@ async function main() {
     "Success! MyCollectionDutch was deployed to: ",
     myCollectionDutch.address
   );
-
-  await sleep(5000);
-  await run("verify:verify", {
-    address: myCollectionDutch.address,
-    constructorArguments: [initialURIFormatted, auctionStartTime],
-  });
 }
-
-const sleep = (milliseconds) => {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-};
 
 main()
   .then(() => process.exit(0))

@@ -12,17 +12,7 @@ async function main() {
   await myCollection.deployed();
 
   console.log("Success! MyCollection was deployed to: ", myCollection.address);
-
-  await sleep(5000);
-  await run("verify:verify", {
-    address: myCollection.address,
-    constructorArguments: [initialURIFormatted],
-  });
 }
-
-const sleep = (milliseconds) => {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-};
 
 main()
   .then(() => process.exit(0))
