@@ -20,7 +20,10 @@ describe("MyCollection", function() {
 
     const MyCollection = await ethers.getContractFactory("MyCollection");
     myCollection = await MyCollection.deploy(
-      "ipfs://QmSBxebqcuP8GyUxaFVEDqpsmbcjNMxg5y3i1UAHLkhHg5/"
+      "ipfs://QmSBxebqcuP8GyUxaFVEDqpsmbcjNMxg5y3i1UAHLkhHg5/",
+      "0xcd03b1680c151ca091ff2660b40d4c36d9248c782c7eac1643157917cbf89dec",
+      "0xE5F135b20F496189FB6C915bABc53e0A70Ff6A1f",
+      1000
     );
     await myCollection.deployed();
 
@@ -28,7 +31,8 @@ describe("MyCollection", function() {
     tokenMaxSupply = await myCollection.TOKEN_MAX_SUPPLY();
     whitelistMintLimit = await myCollection.WHITELIST_MINT_LIMIT();
     publicMintLimit = await myCollection.PUBLIC_MINT_LIMIT();
-    royaltyRecipient = await myCollection.ROYALTY_RECIPIENT();
+
+    royaltyRecipient = await myCollection.royaltyRecipient();
   });
 
   describe("Mint general", function() {
@@ -49,7 +53,7 @@ describe("MyCollection", function() {
           .mint(1, getMerkleProof(whitelisted1.address), {
             value: tokenPrice.sub(1),
           })
-      ).to.be.revertedWithCustomError(myCollection, "InvalidValue");
+      ).to.be.revertedWithCustomError(myCollection, "InvalidValueProvided");
     });
 
     it("should not mint if there are no tokens left", async function() {
@@ -188,19 +192,19 @@ describe("MyCollection", function() {
   describe("Only owner functions", function() {
     describe("Toggle functions", function() {
       it("should toggle minting", async function() {
-        expect(await myCollection.s_mintActive()).to.equal(false);
+        expect(await myCollection.mintActive()).to.equal(false);
 
         await myCollection.toggleMinting();
 
-        expect(await myCollection.s_mintActive()).to.equal(true);
+        expect(await myCollection.mintActive()).to.equal(true);
       });
 
       it("should toggle whitelist mint", async function() {
-        expect(await myCollection.s_whitelistOnly()).to.equal(true);
+        expect(await myCollection.whitelistMintActive()).to.equal(true);
 
         await myCollection.toggleWhitelistOnly();
 
-        expect(await myCollection.s_whitelistOnly()).to.equal(false);
+        expect(await myCollection.whitelistMintActive()).to.equal(false);
       });
 
       it("should not allow to toggle minting if caller is not owner", async function() {
@@ -288,11 +292,11 @@ describe("MyCollection", function() {
 
     describe("Seal contract", function() {
       it("should seal contract", async function() {
-        expect(await myCollection.s_contractSealed()).to.equal(false);
+        expect(await myCollection.contractSealed()).to.equal(false);
 
         await myCollection.sealContractPermanently();
 
-        expect(await myCollection.s_contractSealed()).to.equal(true);
+        expect(await myCollection.contractSealed()).to.equal(true);
       });
 
       it("should not allow to seal contract if contract is already sealed", async function() {
