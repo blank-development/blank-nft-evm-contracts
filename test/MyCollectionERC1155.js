@@ -20,12 +20,14 @@ describe("MyCollectionERC1155", function() {
       "MyCollectionERC1155"
     );
     myCollectionERC1155 = await MyCollectionERC1155.deploy(
-      "ipfs://QmSBxebqcuP8GyUxaFVEDqpsmbcjNMxg5y3i1UAHLkhHg5/"
+      "My Collection",
+      "COLLECTION",
+      "ipfs://QmSBxebqcuP8GyUxaFVEDqpsmbcjNMxg5y3i1UAHLkhHg5/",
+      "0xcd03b1680c151ca091ff2660b40d4c36d9248c782c7eac1643157917cbf89dec"
     );
     await myCollectionERC1155.deployed();
 
-    tokenPrice = await myCollectionERC1155.s_tokenPrice();
-    teamWallet = await myCollectionERC1155.WINEBANK_WALLET();
+    tokenPrice = await myCollectionERC1155.tokenPrice();
   });
 
   describe("Mint general", function() {
@@ -48,13 +50,13 @@ describe("MyCollectionERC1155", function() {
           .mint(1, 1, getMerkleProof(whitelisted1.address), {
             value: tokenPrice.sub(1),
           })
-      ).to.be.revertedWithCustomError(myCollectionERC1155, "InvalidValue");
+      ).to.be.revertedWithCustomError(myCollectionERC1155, "InvalidValueProvided");
     });
 
     it("should not mint if there are no tokens left for that token id", async function() {
       await myCollectionERC1155.toggleMinting();
 
-      const tokenMaxSupply = (await myCollectionERC1155.s_tokenSupplies(1))
+      const tokenMaxSupply = (await myCollectionERC1155.tokenSupplies(1))
         .maximum;
       const wantedNumberOfTokens = tokenMaxSupply.add(1);
 
@@ -93,23 +95,6 @@ describe("MyCollectionERC1155", function() {
             value: tokenPrice,
           })
       ).to.be.revertedWithCustomError(myCollectionERC1155, "InvalidToken");
-    });
-
-    it("should transfer percentage of ETH to team wallet on each mint", async function() {
-      await myCollectionERC1155.toggleMinting();
-
-      const balanceBefore = await ethers.provider.getBalance(teamWallet);
-
-      await myCollectionERC1155
-        .connect(whitelisted1)
-        .mint(1, 1, getMerkleProof(whitelisted1.address), {
-          value: tokenPrice,
-        });
-
-      const balanceAfter = await ethers.provider.getBalance(teamWallet);
-      expect(balanceAfter.sub(balanceBefore)).to.equal(
-        tokenPrice.mul(15).div(100)
-      );
     });
   });
 
@@ -210,19 +195,19 @@ describe("MyCollectionERC1155", function() {
   describe("Only owner functions", function() {
     describe("Toggle functions", function() {
       it("should toggle minting", async function() {
-        expect(await myCollectionERC1155.s_mintActive()).to.equal(false);
+        expect(await myCollectionERC1155.mintActive()).to.equal(false);
 
         await myCollectionERC1155.toggleMinting();
 
-        expect(await myCollectionERC1155.s_mintActive()).to.equal(true);
+        expect(await myCollectionERC1155.mintActive()).to.equal(true);
       });
 
       it("should toggle whitelist mint", async function() {
-        expect(await myCollectionERC1155.s_whitelistOnly()).to.equal(true);
+        expect(await myCollectionERC1155.whitelistMintActive()).to.equal(true);
 
         await myCollectionERC1155.toggleWhitelistOnly();
 
-        expect(await myCollectionERC1155.s_whitelistOnly()).to.equal(false);
+        expect(await myCollectionERC1155.whitelistMintActive()).to.equal(false);
       });
 
       it("should not allow to toggle minting if caller is not owner", async function() {
@@ -255,7 +240,7 @@ describe("MyCollectionERC1155", function() {
       });
 
       it("should not allow to airdrop more tokens than particular token max supply", async function() {
-        const tokenMaxSupply = (await myCollectionERC1155.s_tokenSupplies(1))
+        const tokenMaxSupply = (await myCollectionERC1155.tokenSupplies(1))
           .maximum;
 
         const to = [
@@ -286,13 +271,13 @@ describe("MyCollectionERC1155", function() {
 
     describe("Set maximum supply for token", function() {
       it("should set correct maximum supply for token if caller is owner", async function() {
-        expect((await myCollectionERC1155.s_tokenSupplies(5)).maximum).to.equal(
+        expect((await myCollectionERC1155.tokenSupplies(5)).maximum).to.equal(
           0
         );
 
         await myCollectionERC1155.setTokenSupply(5, 500);
 
-        expect((await myCollectionERC1155.s_tokenSupplies(5)).maximum).to.equal(
+        expect((await myCollectionERC1155.tokenSupplies(5)).maximum).to.equal(
           500
         );
       });
@@ -308,7 +293,7 @@ describe("MyCollectionERC1155", function() {
       it("should set token price correctly if caller is owner", async function() {
         await myCollectionERC1155.setTokenPrice(50000);
 
-        expect(await myCollectionERC1155.s_tokenPrice()).to.equal(50000);
+        expect(await myCollectionERC1155.tokenPrice()).to.equal(50000);
       });
 
       it("should not set token price if caller is not owner", async function() {
@@ -372,11 +357,11 @@ describe("MyCollectionERC1155", function() {
 
     describe("Seal contract", function() {
       it("should seal contract", async function() {
-        expect(await myCollectionERC1155.s_contractSealed()).to.equal(false);
+        expect(await myCollectionERC1155.contractSealed()).to.equal(false);
 
         await myCollectionERC1155.sealContractPermanently();
 
-        expect(await myCollectionERC1155.s_contractSealed()).to.equal(true);
+        expect(await myCollectionERC1155.contractSealed()).to.equal(true);
       });
 
       it("should not allow to seal contract if contract is already sealed", async function() {
