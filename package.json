@@ -10,7 +10,7 @@
     "coverage": "yarn hardhat coverage --network hardhat"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.7.3",
+    "@openzeppelin/contracts": "^4.8.0",
     "erc721a": "^4.2.3"
   },
   "devDependencies": {
