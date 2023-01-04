@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
-    string public BASE_URI;
+    string public baseURI;
 
     bool public contractSealed = false;
     bool public mintActive = false;
@@ -36,11 +36,11 @@ contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
         uint96 _royalties)
         ERC721A("MyCollection", "COLLECTION")
     {
-        BASE_URI = _baseUri;
+        baseURI = _baseUri;
         royaltyRecipient = _royaltyRecipient;
         merkleRoot = _merkleRoot;
 
-        _setDefaultRoyalty(_royaltyRecipient, _royalties); // 10%
+        _setDefaultRoyalty(_royaltyRecipient, _royalties);
     }
 
     function mint(uint256 quantity, bytes32[] calldata merkleProof) 
@@ -109,7 +109,7 @@ contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
     function reveal(string calldata newUri) external onlyOwner {
         if (contractSealed) revert ContractSealed();
 
-        BASE_URI = newUri;
+        baseURI = newUri;
     }
 
     function sealContractPermanently() external onlyOwner {
@@ -146,10 +146,10 @@ contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
     }
 
     function _baseURI() internal view override returns (string memory) {
-        return BASE_URI;
+        return baseURI;
     }
 
-    function _startTokenId() internal view override returns (uint256) {
+    function _startTokenId() internal pure override returns (uint256) {
         return 1;
     }
 }

@@ -14,10 +14,10 @@ error MintingDisabled();
 error ContractSealed();
 
 contract MyCollectionDutch is ERC721A, ERC2981, Ownable {
-    string private s_baseURI;
-    bool public s_contractSealed = false;
+    string private baseURI;
+    bool public contractSealed = false;
 
-    bool public s_publicMintActive = false;
+    bool public publicMintActive = false;
     uint256 public constant TOKEN_PUBLIC_PRICE = 0.3 ether;
     uint256 public constant TOKEN_MAX_SUPPLY = 4000;
     uint256 public constant TOKEN_MINT_LIMIT = 3;
@@ -40,7 +40,7 @@ contract MyCollectionDutch is ERC721A, ERC2981, Ownable {
     {
         AUCTION_START_TIME = startTime;
 
-        s_baseURI = initialURI;
+        baseURI = initialURI;
 
         _setDefaultRoyalty(ROYALTY_RECIPIENT, 1000); // 10%
 
@@ -87,7 +87,7 @@ contract MyCollectionDutch is ERC721A, ERC2981, Ownable {
 
     function publicMint(uint256 quantity) external payable {
         if (msg.sender != tx.origin) revert InvalidCaller();
-        if (!s_publicMintActive) revert MintingDisabled();
+        if (!publicMintActive) revert MintingDisabled();
         if (_totalMinted() + quantity > TOKEN_MAX_SUPPLY)
             revert NoMoreTokensLeft();
 
@@ -126,19 +126,19 @@ contract MyCollectionDutch is ERC721A, ERC2981, Ownable {
     }
 
     function toggleMinting() external onlyOwner {
-        s_publicMintActive = !s_publicMintActive;
+        publicMintActive = !publicMintActive;
     }
 
     function reveal(string calldata newUri) external onlyOwner {
-        if (s_contractSealed) revert ContractSealed();
+        if (contractSealed) revert ContractSealed();
 
-        s_baseURI = newUri;
+        baseURI = newUri;
     }
 
     function sealContractPermanently() external onlyOwner {
-        if (s_contractSealed) revert ContractSealed();
+        if (contractSealed) revert ContractSealed();
 
-        s_contractSealed = true;
+        contractSealed = true;
     }
 
     function setDefaultRoyalty(address receiver, uint96 feeNumerator)
@@ -185,10 +185,10 @@ contract MyCollectionDutch is ERC721A, ERC2981, Ownable {
     }
 
     function _baseURI() internal view override returns (string memory) {
-        return s_baseURI;
+        return baseURI;
     }
 
-    function _startTokenId() internal view override returns (uint256) {
+    function _startTokenId() internal pure override returns (uint256) {
         return 1;
     }
 }

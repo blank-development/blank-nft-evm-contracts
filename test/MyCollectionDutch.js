@@ -329,11 +329,11 @@ describe("MyCollectionDutch", function() {
   describe("Only owner functions", function() {
     describe("Toggle functions", function() {
       it("should toggle public minting", async function() {
-        expect(await myCollectionDutch.s_publicMintActive()).to.equal(false);
+        expect(await myCollectionDutch.publicMintActive()).to.equal(false);
 
         await myCollectionDutch.toggleMinting();
 
-        expect(await myCollectionDutch.s_publicMintActive()).to.equal(true);
+        expect(await myCollectionDutch.publicMintActive()).to.equal(true);
       });
 
       it("should not allow to toggle minting if caller is not owner", async function() {
@@ -411,11 +411,11 @@ describe("MyCollectionDutch", function() {
 
     describe("Seal contract", function() {
       it("should seal contract", async function() {
-        expect(await myCollectionDutch.s_contractSealed()).to.equal(false);
+        expect(await myCollectionDutch.contractSealed()).to.equal(false);
 
         await myCollectionDutch.sealContractPermanently();
 
-        expect(await myCollectionDutch.s_contractSealed()).to.equal(true);
+        expect(await myCollectionDutch.contractSealed()).to.equal(true);
       });
 
       it("should not allow to seal contract if contract is already sealed", async function() {

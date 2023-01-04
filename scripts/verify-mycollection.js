@@ -1,12 +1,20 @@
 async function main() {
   const initialURI = "";
+  const merkleRoot = "";
+  const royaltyRecipient = "";
+  const royalties = 1000;
   const contractAddress = "";
 
   const initialURIFormatted = `${initialURI}?`;
 
   await run("verify:verify", {
     address: contractAddress,
-    constructorArguments: [initialURIFormatted],
+    constructorArguments: [
+      initialURIFormatted,
+      merkleRoot,
+      royaltyRecipient,
+      royalties,
+    ],
   });
 }
 

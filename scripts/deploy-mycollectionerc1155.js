@@ -1,7 +1,10 @@
 const { ethers } = require("hardhat");
 
 async function main() {
+  const name = "";
+  const symbol = "";
   const initialURI = "";
+  const merkleRoot = "";
 
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contract with the account: ", deployer.address);
@@ -11,7 +14,10 @@ async function main() {
     "MyCollectionERC1155"
   );
   const myCollectionERC1155 = await MyCollectionERC1155.deploy(
-    initialURIFormatted
+    name,
+    symbol,
+    initialURIFormatted,
+    merkleRoot
   );
   await myCollectionERC1155.deployed();
 
