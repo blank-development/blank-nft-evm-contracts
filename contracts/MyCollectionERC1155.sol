@@ -10,7 +10,7 @@ contract MyCollectionERC1155 is ERC1155, Ownable {
     string public name;
     string public symbol;
 
-    string public BASE_URI;
+    string public baseURI;
 
     bool public contractSealed = false;
     bool public mintActive = false;
@@ -39,7 +39,7 @@ contract MyCollectionERC1155 is ERC1155, Ownable {
     constructor(string memory _name, string memory _symbol, string memory _baseUri, bytes32 _merkleRoot) ERC1155("") {
         name = _name;
         symbol = _symbol;
-        BASE_URI = _baseUri;
+        baseURI = _baseUri;
         merkleRoot = _merkleRoot;
 
         tokenSupplies[1].maximum = 300;
@@ -117,7 +117,7 @@ contract MyCollectionERC1155 is ERC1155, Ownable {
     function reveal(string calldata newURI) external onlyOwner {
         if (contractSealed) revert ContractSealed();
 
-        BASE_URI = newURI;
+        baseURI = newURI;
     }
 
     function sealContractPermanently() external onlyOwner {
@@ -133,6 +133,6 @@ contract MyCollectionERC1155 is ERC1155, Ownable {
     function uri(uint256 tokenId) public view override returns (string memory) {
         if (tokenSupplies[tokenId].current == 0) revert NonexistentToken();
 
-        return string(abi.encodePacked(BASE_URI, Strings.toString(tokenId)));
+        return string(abi.encodePacked(baseURI, Strings.toString(tokenId)));
     }
 }
