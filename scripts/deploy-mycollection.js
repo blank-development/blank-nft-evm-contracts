@@ -5,6 +5,7 @@ async function main() {
   const merkleRoot = "";
   const royaltyRecipient = "";
   const royalties = 1000; // 10%
+  const crossmintWallet = "";
 
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contract with the account: ", deployer.address);
@@ -15,7 +16,8 @@ async function main() {
     initialURIFormatted,
     merkleRoot,
     royaltyRecipient,
-    royalties
+    royalties,
+    crossmintWallet
   );
   await myCollection.deployed();
 

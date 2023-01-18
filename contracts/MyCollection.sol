@@ -13,6 +13,8 @@ contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
     bool public mintActive = false;
     bool public whitelistMintActive = true;
 
+    address public crossmintWallet;
+
     uint256 public constant TOKEN_PRICE = 0.08 ether;
     uint256 public constant TOKEN_MAX_SUPPLY = 4000;
     uint256 public constant PUBLIC_MINT_LIMIT = 5;
@@ -33,12 +35,14 @@ contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
         string memory _baseUri, 
         bytes32 _merkleRoot,
         address _royaltyRecipient, 
-        uint96 _royalties)
+        uint96 _royalties,
+        address _crossmintWallet)
         ERC721A("MyCollection", "COLLECTION")
     {
         baseURI = _baseUri;
         royaltyRecipient = _royaltyRecipient;
         merkleRoot = _merkleRoot;
+        crossmintWallet = _crossmintWallet;
 
         _setDefaultRoyalty(_royaltyRecipient, _royalties);
     }
@@ -49,36 +53,17 @@ contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
     {
         if (msg.sender != tx.origin) revert InvalidCaller();
 
-        // Revert if mint is not active
-        if (!mintActive) revert MintingDisabled();
+        _checkAndMint(msg.sender, quantity, merkleProof);
+    }
 
-        // Revert if total supply will exceed the limit
-        if (_totalMinted() + quantity > TOKEN_MAX_SUPPLY) revert NoMoreTokensLeft();
+    function crossmint(address to, uint256 quantity, bytes32[] calldata merkleProof)
+        external
+        payable
+    {
+        // Revert if caller is not Crossmint wallet
+        if (msg.sender != crossmintWallet) revert InvalidCaller();
 
-        // Revert if not enough ETH is sent
-        if (msg.value < TOKEN_PRICE * quantity) revert InvalidValueProvided();
-
-        uint256 finalTokenBalance;
-        unchecked {
-            // Get amount minted from owner auxiliary data
-            finalTokenBalance = _getAux(msg.sender) + quantity;
-        }
-
-        if (whitelistMintActive) {
-            // Revert if final token balance is above whitelist limit
-            if (finalTokenBalance > WHITELIST_MINT_LIMIT) revert MintLimitReached();
-
-            // Revert if merkle proof is not valid
-            if (!MerkleProof.verify(merkleProof, merkleRoot, keccak256(abi.encodePacked(msg.sender)))) revert NotWhitelisted();
-        } else {
-            // Revert if final token balance is above public limit
-            if (finalTokenBalance > PUBLIC_MINT_LIMIT) revert MintLimitReached();
-        }
-
-        // Save owner auxiliary data to final amount minted
-        _setAux(msg.sender, uint64(finalTokenBalance));
-
-        _mint(msg.sender, quantity);
+        _checkAndMint(to, quantity, merkleProof);
     }
 
     function airdrop(address[] calldata to, uint256[] calldata quantity)
@@ -118,6 +103,10 @@ contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
         contractSealed = true;
     }
 
+    function setCrossmintWallet(address _crossmintWallet) external onlyOwner {
+        crossmintWallet = _crossmintWallet;
+    }
+
     function setDefaultRoyalty(address receiver, uint96 feeNumerator)
         external
         onlyOwner
@@ -152,4 +141,37 @@ contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
     function _startTokenId() internal pure override returns (uint256) {
         return 1;
     }
+
+    function _checkAndMint(address to, uint256 quantity, bytes32[] calldata merkleProof) private {
+        // Revert if mint is not active
+        if (!mintActive) revert MintingDisabled();
+
+        // Revert if total supply will exceed the limit
+        if (_totalMinted() + quantity > TOKEN_MAX_SUPPLY) revert NoMoreTokensLeft();
+
+        // Revert if not enough ETH is sent
+        if (msg.value < TOKEN_PRICE * quantity) revert InvalidValueProvided();
+
+        uint256 finalTokenBalance;
+        unchecked {
+            // Get amount minted from owner auxiliary data
+            finalTokenBalance = _getAux(to) + quantity;
+        }
+
+        if (whitelistMintActive) {
+            // Revert if final token balance is above whitelist limit
+            if (finalTokenBalance > WHITELIST_MINT_LIMIT) revert MintLimitReached();
+
+            // Revert if merkle proof is not valid
+            if (!MerkleProof.verifyCalldata(merkleProof, merkleRoot, keccak256(abi.encodePacked(to)))) revert NotWhitelisted();
+        } else {
+            // Revert if final token balance is above public limit
+            if (finalTokenBalance > PUBLIC_MINT_LIMIT) revert MintLimitReached();
+        }
+
+        // Revert if final token balance is above public limit
+        _setAux(to, uint64(finalTokenBalance));
+
+        _mint(to, quantity);
+    } 
 }
