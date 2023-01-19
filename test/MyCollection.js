@@ -16,6 +16,7 @@ describe("MyCollection", function() {
       whitelisted2,
       whitelisted3,
       notWhitelisted,
+      crossmintEOA,
     ] = await ethers.getSigners();
 
     const MyCollection = await ethers.getContractFactory("MyCollection");
@@ -27,6 +28,8 @@ describe("MyCollection", function() {
     );
     await myCollection.deployed();
 
+    await myCollection.setCrossmintWallet(crossmintEOA.address);
+
     tokenPrice = await myCollection.TOKEN_PRICE();
     tokenMaxSupply = await myCollection.TOKEN_MAX_SUPPLY();
     whitelistMintLimit = await myCollection.WHITELIST_MINT_LIMIT();
@@ -36,38 +39,151 @@ describe("MyCollection", function() {
   });
 
   describe("Mint general", function() {
-    it("should not mint if minting is disabled", async function() {
-      await expect(
-        myCollection
-          .connect(whitelisted1)
-          .mint(1, getMerkleProof(whitelisted1.address), { value: tokenPrice })
-      ).to.be.revertedWithCustomError(myCollection, "MintingDisabled");
+    describe("Main mint function", function() {
+      it("should not mint if minting is disabled", async function() {
+        await expect(
+          myCollection
+            .connect(whitelisted1)
+            .mint(1, getMerkleProof(whitelisted1.address), {
+              value: tokenPrice,
+            })
+        ).to.be.revertedWithCustomError(myCollection, "MintingDisabled");
+      });
+
+      it("should not mint if not enough ETH is provided", async function() {
+        await myCollection.toggleMinting();
+
+        await expect(
+          myCollection
+            .connect(whitelisted1)
+            .mint(1, getMerkleProof(whitelisted1.address), {
+              value: tokenPrice.sub(1),
+            })
+        ).to.be.revertedWithCustomError(myCollection, "InvalidValueProvided");
+      });
+
+      it("should not mint if there are no tokens left", async function() {
+        await myCollection.toggleMinting();
+
+        const wantedNumberOfTokens = tokenMaxSupply.add(1);
+
+        await expect(
+          myCollection
+            .connect(whitelisted1)
+            .mint(wantedNumberOfTokens, getMerkleProof(whitelisted1.address), {
+              value: tokenPrice.mul(wantedNumberOfTokens),
+            })
+        ).to.be.revertedWithCustomError(myCollection, "NoMoreTokensLeft");
+      });
     });
 
-    it("should not mint if you dont provide enough ETH", async function() {
-      await myCollection.toggleMinting();
+    describe("Crossmint", function() {
+      it("should not mint if minting is disabled", async function() {
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
+            .crossmint(
+              whitelisted1.address,
+              1,
+              getMerkleProof(whitelisted1.address),
+              {
+                value: tokenPrice,
+              }
+            )
+        ).to.be.revertedWithCustomError(myCollection, "MintingDisabled");
+      });
 
-      await expect(
-        myCollection
-          .connect(whitelisted1)
-          .mint(1, getMerkleProof(whitelisted1.address), {
-            value: tokenPrice.sub(1),
-          })
-      ).to.be.revertedWithCustomError(myCollection, "InvalidValueProvided");
-    });
+      it("should not mint if not enough ETH is provided", async function() {
+        await myCollection.toggleMinting();
 
-    it("should not mint if there are no tokens left", async function() {
-      await myCollection.toggleMinting();
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
+            .crossmint(
+              whitelisted1.address,
+              1,
+              getMerkleProof(whitelisted1.address),
+              {
+                value: tokenPrice.sub(1),
+              }
+            )
+        ).to.be.revertedWithCustomError(myCollection, "InvalidValueProvided");
+      });
 
-      const wantedNumberOfTokens = tokenMaxSupply.add(1);
+      it("should not mint if there are no tokens left", async function() {
+        await myCollection.toggleMinting();
 
-      await expect(
-        myCollection
-          .connect(whitelisted1)
-          .mint(wantedNumberOfTokens, getMerkleProof(whitelisted1.address), {
-            value: tokenPrice.mul(wantedNumberOfTokens),
-          })
-      ).to.be.revertedWithCustomError(myCollection, "NoMoreTokensLeft");
+        const wantedNumberOfTokens = tokenMaxSupply.add(1);
+
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
+            .crossmint(
+              whitelisted1.address,
+              wantedNumberOfTokens,
+              getMerkleProof(whitelisted1.address),
+              {
+                value: tokenPrice.mul(wantedNumberOfTokens),
+              }
+            )
+        ).to.be.revertedWithCustomError(myCollection, "NoMoreTokensLeft");
+      });
+
+      it("should mint if caller is Crossmint wallet", async function() {
+        await myCollection.toggleMinting();
+
+        expect(await myCollection.balanceOf(whitelisted1.address)).to.equal(0);
+
+        await myCollection
+          .connect(crossmintEOA)
+          .crossmint(
+            whitelisted1.address,
+            1,
+            getMerkleProof(whitelisted1.address),
+            {
+              value: tokenPrice,
+            }
+          );
+
+        expect(await myCollection.balanceOf(whitelisted1.address)).to.equal(1);
+      });
+
+      it("should not mint if caller is not Crossmint EOA", async function() {
+        await myCollection.toggleMinting();
+
+        await expect(
+          myCollection
+            .connect(whitelisted1)
+            .crossmint(
+              whitelisted1.address,
+              1,
+              getMerkleProof(whitelisted1.address),
+              {
+                value: tokenPrice,
+              }
+            )
+        ).to.be.revertedWithCustomError(myCollection, "InvalidCaller");
+      });
+
+      it("should not mint if Crossmint wallet is not set", async function() {
+        await myCollection.toggleMinting();
+
+        // Crossmint wallet is set to 0x0 by default when contract is deployed
+        await myCollection.setCrossmintWallet(ethers.constants.AddressZero);
+
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
+            .crossmint(
+              whitelisted1.address,
+              1,
+              getMerkleProof(whitelisted1.address),
+              {
+                value: tokenPrice,
+              }
+            )
+        ).to.be.revertedWithCustomError(myCollection, "InvalidCaller");
+      });
     });
   });
 
@@ -76,52 +192,189 @@ describe("MyCollection", function() {
       await myCollection.toggleMinting();
     });
 
-    it("should mint if caller is whitelisted", async function() {
-      expect(await myCollection.balanceOf(whitelisted1.address)).to.equal(0);
+    describe("Main mint function", function() {
+      it("should mint if caller is whitelisted", async function() {
+        expect(await myCollection.balanceOf(whitelisted1.address)).to.equal(0);
+        expect(await myCollection.amountMinted(whitelisted1.address)).to.equal(
+          0
+        );
 
-      await myCollection
-        .connect(whitelisted1)
-        .mint(1, getMerkleProof(whitelisted1.address), { value: tokenPrice });
+        await myCollection
+          .connect(whitelisted1)
+          .mint(1, getMerkleProof(whitelisted1.address), { value: tokenPrice });
 
-      expect(await myCollection.balanceOf(whitelisted1.address)).to.equal(1);
+        expect(await myCollection.balanceOf(whitelisted1.address)).to.equal(1);
+        expect(await myCollection.amountMinted(whitelisted1.address)).to.equal(
+          1
+        );
+      });
+
+      it("should not allow whitelisted caller to mint more than whitelist mint limit", async function() {
+        const wantedNumberOfTokens = whitelistMintLimit.add(1);
+
+        await expect(
+          myCollection
+            .connect(whitelisted1)
+            .mint(wantedNumberOfTokens, getMerkleProof(whitelisted1.address), {
+              value: tokenPrice.mul(wantedNumberOfTokens),
+            })
+        ).to.be.revertedWithCustomError(myCollection, "MintLimitReached");
+      });
+
+      it("should not mint if caller is not whitelisted", async function() {
+        await expect(
+          myCollection
+            .connect(notWhitelisted)
+            .mint(1, getMerkleProof(notWhitelisted.address), {
+              value: tokenPrice,
+            })
+        ).to.be.revertedWithCustomError(myCollection, "NotWhitelisted");
+      });
+
+      it("should not mint if not whitelisted caller uses proof of another whitelisted address", async function() {
+        await expect(
+          myCollection
+            .connect(notWhitelisted)
+            .mint(1, getMerkleProof(whitelisted1.address), {
+              value: tokenPrice,
+            })
+        ).to.be.revertedWithCustomError(myCollection, "NotWhitelisted");
+      });
+
+      it("should not mint if whitelisted caller uses proof of another whitelisted address", async function() {
+        await expect(
+          myCollection
+            .connect(whitelisted1)
+            .mint(1, getMerkleProof(whitelisted2.address), {
+              value: tokenPrice,
+            })
+        ).to.be.revertedWithCustomError(myCollection, "NotWhitelisted");
+      });
+
+      it("should not allow to mint more than whitelist mint limit after using crossmint function", async function() {
+        const wantedNumberOfTokens = whitelistMintLimit;
+
+        await myCollection
+          .connect(crossmintEOA)
+          .crossmint(
+            whitelisted1.address,
+            wantedNumberOfTokens,
+            getMerkleProof(whitelisted1.address),
+            {
+              value: tokenPrice.mul(wantedNumberOfTokens),
+            }
+          );
+
+        await expect(
+          myCollection
+            .connect(whitelisted1)
+            .mint(1, getMerkleProof(whitelisted1.address), {
+              value: tokenPrice,
+            })
+        ).to.be.revertedWithCustomError(myCollection, "MintLimitReached");
+      });
     });
 
-    it("should not allow whitelisted caller to mint more than whitelist mint limit", async function() {
-      const wantedNumberOfTokens = whitelistMintLimit.add(1);
+    describe("Crossmint", function() {
+      it("should mint if recipient is whitelisted", async function() {
+        expect(await myCollection.balanceOf(whitelisted1.address)).to.equal(0);
 
-      await expect(
-        myCollection
+        await myCollection
+          .connect(crossmintEOA)
+          .crossmint(
+            whitelisted1.address,
+            1,
+            getMerkleProof(whitelisted1.address),
+            {
+              value: tokenPrice,
+            }
+          );
+
+        expect(await myCollection.balanceOf(whitelisted1.address)).to.equal(1);
+      });
+
+      it("should not allow to mint more than whitelist mint limit to whitelisted recipient", async function() {
+        const wantedNumberOfTokens = whitelistMintLimit.add(1);
+
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
+            .crossmint(
+              whitelisted1.address,
+              wantedNumberOfTokens,
+              getMerkleProof(whitelisted1.address),
+              {
+                value: tokenPrice.mul(wantedNumberOfTokens),
+              }
+            )
+        ).to.be.revertedWithCustomError(myCollection, "MintLimitReached");
+      });
+
+      it("should not mint if recipient is not whitelisted", async function() {
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
+            .crossmint(
+              notWhitelisted.address,
+              1,
+              getMerkleProof(notWhitelisted.address),
+              {
+                value: tokenPrice,
+              }
+            )
+        ).to.be.revertedWithCustomError(myCollection, "NotWhitelisted");
+      });
+
+      it("should not mint if not whitelisted recipient uses proof of another whitelisted address", async function() {
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
+            .crossmint(
+              notWhitelisted.address,
+              1,
+              getMerkleProof(whitelisted1.address),
+              {
+                value: tokenPrice,
+              }
+            )
+        ).to.be.revertedWithCustomError(myCollection, "NotWhitelisted");
+      });
+
+      it("should not mint if whitelisted recipient uses proof of another whitelisted address", async function() {
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
+            .crossmint(
+              whitelisted1.address,
+              1,
+              getMerkleProof(whitelisted2.address),
+              { value: tokenPrice }
+            )
+        ).to.be.revertedWithCustomError(myCollection, "NotWhitelisted");
+      });
+
+      it("should not allow to mint more than whitelist mint limit after using main mint function", async function() {
+        const wantedNumberOfTokens = whitelistMintLimit;
+
+        await myCollection
           .connect(whitelisted1)
           .mint(wantedNumberOfTokens, getMerkleProof(whitelisted1.address), {
             value: tokenPrice.mul(wantedNumberOfTokens),
-          })
-      ).to.be.revertedWithCustomError(myCollection, "MintLimitReached");
-    });
+          });
 
-    it("should not mint if caller is not whitelisted", async function() {
-      await expect(
-        myCollection
-          .connect(notWhitelisted)
-          .mint(1, getMerkleProof(notWhitelisted.address), {
-            value: tokenPrice,
-          })
-      ).to.be.revertedWithCustomError(myCollection, "NotWhitelisted");
-    });
-
-    it("should not mint if not whitelisted caller uses proof of another whitelisted address", async function() {
-      await expect(
-        myCollection
-          .connect(notWhitelisted)
-          .mint(1, getMerkleProof(whitelisted1.address), { value: tokenPrice })
-      ).to.be.revertedWithCustomError(myCollection, "NotWhitelisted");
-    });
-
-    it("should not mint if whitelisted caller uses proof of another whitelisted address", async function() {
-      await expect(
-        myCollection
-          .connect(whitelisted1)
-          .mint(1, getMerkleProof(whitelisted2.address), { value: tokenPrice })
-      ).to.be.revertedWithCustomError(myCollection, "NotWhitelisted");
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
+            .crossmint(
+              whitelisted1.address,
+              1,
+              getMerkleProof(whitelisted1.address),
+              {
+                value: tokenPrice,
+              }
+            )
+        ).to.be.revertedWithCustomError(myCollection, "MintLimitReached");
+      });
     });
   });
 
@@ -132,42 +385,124 @@ describe("MyCollection", function() {
       await myCollection.toggleWhitelistOnly();
     });
 
-    it("should mint if caller is any user", async function() {
-      const wantedNumberOfTokens = publicMintLimit;
+    describe("Main mint function", function() {
+      it("should mint if caller is any user", async function() {
+        const wantedNumberOfTokens = publicMintLimit;
 
-      await myCollection
-        .connect(notWhitelisted)
-        .mint(wantedNumberOfTokens, [], {
-          value: tokenPrice.mul(wantedNumberOfTokens),
-        });
+        await myCollection
+          .connect(notWhitelisted)
+          .mint(wantedNumberOfTokens, [], {
+            value: tokenPrice.mul(wantedNumberOfTokens),
+          });
+      });
+
+      it("should not allow user to mint more than public mint limit", async function() {
+        const wantedNumberOfTokens = publicMintLimit.add(1);
+
+        await expect(
+          myCollection.connect(notWhitelisted).mint(wantedNumberOfTokens, [], {
+            value: tokenPrice.mul(wantedNumberOfTokens),
+          })
+        ).to.be.revertedWithCustomError(myCollection, "MintLimitReached");
+      });
+
+      it("should mint after airdrop", async function() {
+        expect(await myCollection.balanceOf(notWhitelisted.address)).to.equal(
+          0
+        );
+
+        await myCollection.airdrop([notWhitelisted.address], [1]);
+
+        const wantedNumberOfTokens = publicMintLimit;
+
+        await myCollection
+          .connect(notWhitelisted)
+          .mint(wantedNumberOfTokens, [], {
+            value: tokenPrice.mul(wantedNumberOfTokens),
+          });
+
+        expect(await myCollection.balanceOf(notWhitelisted.address)).to.equal(
+          publicMintLimit.add(1)
+        );
+      });
+
+      it("should not allow to mint more than public mint limit after using crossmint function", async function() {
+        const wantedNumberOfTokens = publicMintLimit;
+
+        await myCollection
+          .connect(crossmintEOA)
+          .crossmint(notWhitelisted.address, wantedNumberOfTokens, [], {
+            value: tokenPrice.mul(wantedNumberOfTokens),
+          });
+
+        await expect(
+          myCollection.connect(notWhitelisted).mint(1, [], {
+            value: tokenPrice,
+          })
+        ).to.be.revertedWithCustomError(myCollection, "MintLimitReached");
+      });
     });
 
-    it("should not allow user to mint more than public mint limit", async function() {
-      const wantedNumberOfTokens = publicMintLimit.add(1);
+    describe("Crossmint", function() {
+      it("should mint if recipient is any user", async function() {
+        const wantedNumberOfTokens = publicMintLimit;
 
-      await expect(
-        myCollection.connect(notWhitelisted).mint(wantedNumberOfTokens, [], {
-          value: tokenPrice.mul(wantedNumberOfTokens),
-        })
-      ).to.be.revertedWithCustomError(myCollection, "MintLimitReached");
-    });
+        await myCollection
+          .connect(crossmintEOA)
+          .crossmint(notWhitelisted.address, wantedNumberOfTokens, [], {
+            value: tokenPrice.mul(wantedNumberOfTokens),
+          });
+      });
 
-    it("should mint after airdrop", async function() {
-      expect(await myCollection.balanceOf(notWhitelisted.address)).to.equal(0);
+      it("should not allow to mint more than public mint limit to recipient", async function() {
+        const wantedNumberOfTokens = publicMintLimit.add(1);
 
-      await myCollection.airdrop([notWhitelisted.address], [1]);
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
+            .crossmint(notWhitelisted.address, wantedNumberOfTokens, [], {
+              value: tokenPrice.mul(wantedNumberOfTokens),
+            })
+        ).to.be.revertedWithCustomError(myCollection, "MintLimitReached");
+      });
 
-      const wantedNumberOfTokens = publicMintLimit;
+      it("should mint after airdrop", async function() {
+        expect(await myCollection.balanceOf(notWhitelisted.address)).to.equal(
+          0
+        );
 
-      await myCollection
-        .connect(notWhitelisted)
-        .mint(wantedNumberOfTokens, [], {
-          value: tokenPrice.mul(wantedNumberOfTokens),
-        });
+        await myCollection.airdrop([notWhitelisted.address], [1]);
 
-      expect(await myCollection.balanceOf(notWhitelisted.address)).to.equal(
-        publicMintLimit.add(1)
-      );
+        const wantedNumberOfTokens = publicMintLimit;
+
+        await myCollection
+          .connect(crossmintEOA)
+          .crossmint(notWhitelisted.address, wantedNumberOfTokens, [], {
+            value: tokenPrice.mul(wantedNumberOfTokens),
+          });
+
+        expect(await myCollection.balanceOf(notWhitelisted.address)).to.equal(
+          publicMintLimit.add(1)
+        );
+      });
+
+      it("should not allow to mint more than public mint limit after using main mint function", async function() {
+        const wantedNumberOfTokens = publicMintLimit;
+
+        await myCollection
+          .connect(notWhitelisted)
+          .mint(wantedNumberOfTokens, [], {
+            value: tokenPrice.mul(wantedNumberOfTokens),
+          });
+
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
+            .crossmint(notWhitelisted.address, 1, [], {
+              value: tokenPrice,
+            })
+        ).to.be.revertedWithCustomError(myCollection, "MintLimitReached");
+      });
     });
   });
 
@@ -310,6 +645,24 @@ describe("MyCollection", function() {
       it("should not allow to seal contract if caller is not owner", async function() {
         await expect(
           myCollection.connect(whitelisted1).sealContractPermanently()
+        ).to.be.revertedWith("Ownable: caller is not the owner");
+      });
+    });
+
+    describe("Set Crossmint wallet", function() {
+      it("should set crossmint address correctly", async function() {
+        await myCollection.setCrossmintWallet(notWhitelisted.address);
+
+        expect(await myCollection.crossmintWallet()).to.equal(
+          notWhitelisted.address
+        );
+      });
+
+      it("should not allow to set crossmint address if caller is not owner", async function() {
+        await expect(
+          myCollection
+            .connect(whitelisted1)
+            .setCrossmintWallet(notWhitelisted.address)
         ).to.be.revertedWith("Ownable: caller is not the owner");
       });
     });
