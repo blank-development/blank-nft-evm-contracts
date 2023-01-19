@@ -3,7 +3,6 @@ async function main() {
   const merkleRoot = "";
   const royaltyRecipient = "";
   const royalties = 1000;
-  const crossmintWallet = "";
   const contractAddress = "";
 
   const initialURIFormatted = `${initialURI}?`;
@@ -15,7 +14,6 @@ async function main() {
       merkleRoot,
       royaltyRecipient,
       royalties,
-      crossmintWallet,
     ],
   });
 }

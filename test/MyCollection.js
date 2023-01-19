@@ -24,10 +24,11 @@ describe("MyCollection", function() {
       "ipfs://QmSBxebqcuP8GyUxaFVEDqpsmbcjNMxg5y3i1UAHLkhHg5/",
       "0xcd03b1680c151ca091ff2660b40d4c36d9248c782c7eac1643157917cbf89dec",
       "0xE5F135b20F496189FB6C915bABc53e0A70Ff6A1f",
-      1000,
-      crossmintEOA.address
+      1000
     );
     await myCollection.deployed();
+
+    await myCollection.setCrossmintWallet(crossmintEOA.address);
 
     tokenPrice = await myCollection.TOKEN_PRICE();
     tokenMaxSupply = await myCollection.TOKEN_MAX_SUPPLY();
@@ -153,6 +154,26 @@ describe("MyCollection", function() {
         await expect(
           myCollection
             .connect(whitelisted1)
+            .crossmint(
+              whitelisted1.address,
+              1,
+              getMerkleProof(whitelisted1.address),
+              {
+                value: tokenPrice,
+              }
+            )
+        ).to.be.revertedWithCustomError(myCollection, "InvalidCaller");
+      });
+
+      it("should not mint if Crossmint wallet is not set", async function() {
+        await myCollection.toggleMinting();
+
+        // Crossmint wallet is set to 0x0 by default when contract is deployed
+        await myCollection.setCrossmintWallet(ethers.constants.AddressZero);
+
+        await expect(
+          myCollection
+            .connect(crossmintEOA)
             .crossmint(
               whitelisted1.address,
               1,

@@ -35,14 +35,12 @@ contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
         string memory _baseUri, 
         bytes32 _merkleRoot,
         address _royaltyRecipient, 
-        uint96 _royalties,
-        address _crossmintWallet)
+        uint96 _royalties)
         ERC721A("MyCollection", "COLLECTION")
     {
         baseURI = _baseUri;
         royaltyRecipient = _royaltyRecipient;
         merkleRoot = _merkleRoot;
-        crossmintWallet = _crossmintWallet;
 
         _setDefaultRoyalty(_royaltyRecipient, _royalties);
     }
