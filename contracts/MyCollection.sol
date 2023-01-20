@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity 0.8.15;
+pragma solidity 0.8.17;
 
 import "erc721a/contracts/extensions/ERC721ABurnable.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "operator-filter-registry/src/DefaultOperatorFilterer.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
+contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Ownable {
     string public baseURI;
 
     bool public contractSealed = false;
@@ -119,6 +120,50 @@ contract MyCollection is ERC721ABurnable, ERC2981, Ownable {
     function amountMinted(address user) external view returns (uint64) {
         // Returns amount minted from owner auxiliary data
         return _getAux(user);
+    }
+
+    function setApprovalForAll(address operator, bool approved)
+        public
+        override(ERC721A, IERC721A)
+        onlyAllowedOperatorApproval(operator)
+    {
+        super.setApprovalForAll(operator, approved);
+    }
+
+    function approve(address operator, uint256 tokenId)
+        public
+        payable
+        override(ERC721A, IERC721A)
+        onlyAllowedOperatorApproval(operator)
+    {
+        super.approve(operator, tokenId);
+    }
+
+    function transferFrom(address from, address to, uint256 tokenId)
+        public
+        payable
+        override(ERC721A, IERC721A)
+        onlyAllowedOperator(from)
+    {
+        super.transferFrom(from, to, tokenId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId)
+        public
+        payable
+        override(ERC721A, IERC721A)
+        onlyAllowedOperator(from)
+    {
+        super.safeTransferFrom(from, to, tokenId);
+    }
+
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data)
+        public
+        payable
+        override(ERC721A, IERC721A)
+        onlyAllowedOperator(from)
+    {
+        super.safeTransferFrom(from, to, tokenId, data);
     }
 
     function supportsInterface(bytes4 interfaceId)
