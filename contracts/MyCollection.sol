@@ -33,9 +33,9 @@ contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Owna
     error ContractSealed();
 
     constructor(
-        string memory _baseUri, 
+        string memory _baseUri,
         bytes32 _merkleRoot,
-        address _royaltyRecipient, 
+        address _royaltyRecipient,
         uint96 _royalties)
         ERC721A("MyCollection", "COLLECTION")
     {
@@ -46,7 +46,7 @@ contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Owna
         _setDefaultRoyalty(_royaltyRecipient, _royalties);
     }
 
-    function mint(uint256 quantity, bytes32[] calldata merkleProof) 
+    function mint(uint256 quantity, bytes32[] calldata merkleProof)
         external
         payable
     {
@@ -216,5 +216,5 @@ contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Owna
         _setAux(to, uint64(finalTokenBalance));
 
         _mint(to, quantity);
-    } 
+    }
 }
