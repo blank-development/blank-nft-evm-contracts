@@ -1,10 +1,10 @@
 const { ethers } = require("hardhat");
 
 async function main() {
-  const initialURI = "";
+  const initialURI = "ipfs://QmVqodXFfpUU13GJDetcE2UtPLWMBsZubX6ZnhU3XDWhmJ?";
   const merkleRoot = "";
-  const royaltyRecipient = "";
-  const royalties = 1000; // 10%
+  const royaltyRecipient = "0x5f148706ce473A637146D13bdE23F4160D1F0F62";
+  const royalties = 1000; // 5%
 
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contract with the account: ", deployer.address);
