@@ -9,4 +9,4 @@ const getMerkleTreeRoot = () => {
   return root;
 };
 
-module.exports = { getMerkleProof };
+module.exports = { getMerkleTreeRoot };

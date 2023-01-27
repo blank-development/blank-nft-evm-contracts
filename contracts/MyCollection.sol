@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity 0.8.17;
 
-import "erc721a/contracts/extensions/ERC721ABurnable.sol";
-import "@openzeppelin/contracts/token/common/ERC2981.sol";
-import "operator-filter-registry/src/DefaultOperatorFilterer.sol";
+import "erc721a/contracts/ERC721A.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "operator-filter-registry/src/DefaultOperatorFilterer.sol";
 
-contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Ownable {
+contract MyCollection is ERC721A, ERC2981, DefaultOperatorFilterer, Ownable {
     string public baseURI;
 
-    bool public contractSealed = false;
     bool public mintActive = false;
     bool public whitelistMintActive = true;
-
-    address public crossmintWallet;
+    bool public isOperatorFiltererEnabled = false;
 
     uint256 public constant TOKEN_PRICE = 0.08 ether;
     uint256 public constant TOKEN_MAX_SUPPLY = 4000;
@@ -22,7 +20,6 @@ contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Owna
     uint256 public constant WHITELIST_MINT_LIMIT = 1;
 
     bytes32 public immutable merkleRoot;
-    address public immutable royaltyRecipient;
 
     error InvalidCaller();
     error MintingDisabled();
@@ -34,16 +31,11 @@ contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Owna
 
     constructor(
         string memory _baseUri,
-        bytes32 _merkleRoot,
-        address _royaltyRecipient,
-        uint96 _royalties)
-        ERC721A("MyCollection", "COLLECTION")
+        bytes32 _merkleRoot)
+        ERC721A("Blank Demo", "BLANK")
     {
         baseURI = _baseUri;
-        royaltyRecipient = _royaltyRecipient;
         merkleRoot = _merkleRoot;
-
-        _setDefaultRoyalty(_royaltyRecipient, _royalties);
     }
 
     function mint(uint256 quantity, bytes32[] calldata merkleProof)
@@ -52,17 +44,34 @@ contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Owna
     {
         if (msg.sender != tx.origin) revert InvalidCaller();
 
-        _checkAndMint(msg.sender, quantity, merkleProof);
-    }
+        if (!mintActive) revert MintingDisabled();
 
-    function crossmint(address to, uint256 quantity, bytes32[] calldata merkleProof)
-        external
-        payable
-    {
-        // Revert if caller is not Crossmint wallet
-        if (msg.sender != crossmintWallet) revert InvalidCaller();
+        // Revert if total supply will exceed the limit
+        if (_totalMinted() + quantity > TOKEN_MAX_SUPPLY) revert NoMoreTokensLeft();
 
-        _checkAndMint(to, quantity, merkleProof);
+        // Revert if not enough ETH is sent
+        if (msg.value < TOKEN_PRICE * quantity) revert InvalidValueProvided();
+
+        uint256 finalTokenBalance;
+        unchecked {
+            // Get amount minted from owner auxiliary data
+            finalTokenBalance = _getAux(msg.sender) + quantity;
+        }
+
+        if (whitelistMintActive) {
+            // Revert if final token balance is above whitelist limit
+            if (finalTokenBalance > WHITELIST_MINT_LIMIT) revert MintLimitReached();
+
+            // Revert if merkle proof is not valid
+            if (!MerkleProof.verifyCalldata(merkleProof, merkleRoot, keccak256(abi.encodePacked(msg.sender)))) revert NotWhitelisted();
+        } else {
+            // Revert if final token balance is above public limit
+            if (finalTokenBalance > PUBLIC_MINT_LIMIT) revert MintLimitReached();
+        }
+
+        // Revert if final token balance is above public limit
+        _setAux(msg.sender, uint64(finalTokenBalance));
+        _mint(msg.sender, quantity);
     }
 
     function airdrop(address[] calldata to, uint256[] calldata quantity)
@@ -90,23 +99,15 @@ contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Owna
         whitelistMintActive = !whitelistMintActive;
     }
 
-    function reveal(string calldata newUri) external onlyOwner {
-        if (contractSealed) revert ContractSealed();
+    function toggleOperatorFilterer() external onlyOwner{
+        isOperatorFiltererEnabled = !isOperatorFiltererEnabled;
+    }
 
+    function setBaseURI(string calldata newUri) external onlyOwner {
         baseURI = newUri;
     }
 
-    function sealContractPermanently() external onlyOwner {
-        if (contractSealed) revert ContractSealed();
-
-        contractSealed = true;
-    }
-
-    function setCrossmintWallet(address _crossmintWallet) external onlyOwner {
-        crossmintWallet = _crossmintWallet;
-    }
-
-    function setDefaultRoyalty(address receiver, uint96 feeNumerator)
+    function setRoyalties(address receiver, uint96 feeNumerator)
         external
         onlyOwner
     {
@@ -114,7 +115,8 @@ contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Owna
     }
 
     function withdrawAllFunds() external onlyOwner {
-        payable(royaltyRecipient).transfer(address(this).balance);
+        require(address(this).balance > 0, "No amount to withdraw");
+        payable(msg.sender).transfer(address(this).balance);
     }
 
     function amountMinted(address user) external view returns (uint64) {
@@ -122,54 +124,23 @@ contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Owna
         return _getAux(user);
     }
 
-    function setApprovalForAll(address operator, bool approved)
-        public
-        override(ERC721A, IERC721A)
-        onlyAllowedOperatorApproval(operator)
-    {
-        super.setApprovalForAll(operator, approved);
-    }
+    function _beforeTokenTransfers(
+        address from,
+        address to,
+        uint256 startTokenId,
+        uint256 quantity
+    ) internal virtual override{
+        if(isOperatorFiltererEnabled){
+         _checkFilterOperator(msg.sender);
+        }
 
-    function approve(address operator, uint256 tokenId)
-        public
-        payable
-        override(ERC721A, IERC721A)
-        onlyAllowedOperatorApproval(operator)
-    {
-        super.approve(operator, tokenId);
-    }
-
-    function transferFrom(address from, address to, uint256 tokenId)
-        public
-        payable
-        override(ERC721A, IERC721A)
-        onlyAllowedOperator(from)
-    {
-        super.transferFrom(from, to, tokenId);
-    }
-
-    function safeTransferFrom(address from, address to, uint256 tokenId)
-        public
-        payable
-        override(ERC721A, IERC721A)
-        onlyAllowedOperator(from)
-    {
-        super.safeTransferFrom(from, to, tokenId);
-    }
-
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data)
-        public
-        payable
-        override(ERC721A, IERC721A)
-        onlyAllowedOperator(from)
-    {
-        super.safeTransferFrom(from, to, tokenId, data);
+        super._beforeTokenTransfers(from, to, startTokenId, quantity);
     }
 
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC2981, ERC721A, IERC721A)
+        override(ERC2981, ERC721A)
         returns (bool)
     {
         return
@@ -183,38 +154,5 @@ contract MyCollection is ERC721ABurnable, ERC2981, DefaultOperatorFilterer, Owna
 
     function _startTokenId() internal pure override returns (uint256) {
         return 1;
-    }
-
-    function _checkAndMint(address to, uint256 quantity, bytes32[] calldata merkleProof) private {
-        // Revert if mint is not active
-        if (!mintActive) revert MintingDisabled();
-
-        // Revert if total supply will exceed the limit
-        if (_totalMinted() + quantity > TOKEN_MAX_SUPPLY) revert NoMoreTokensLeft();
-
-        // Revert if not enough ETH is sent
-        if (msg.value < TOKEN_PRICE * quantity) revert InvalidValueProvided();
-
-        uint256 finalTokenBalance;
-        unchecked {
-            // Get amount minted from owner auxiliary data
-            finalTokenBalance = _getAux(to) + quantity;
-        }
-
-        if (whitelistMintActive) {
-            // Revert if final token balance is above whitelist limit
-            if (finalTokenBalance > WHITELIST_MINT_LIMIT) revert MintLimitReached();
-
-            // Revert if merkle proof is not valid
-            if (!MerkleProof.verifyCalldata(merkleProof, merkleRoot, keccak256(abi.encodePacked(to)))) revert NotWhitelisted();
-        } else {
-            // Revert if final token balance is above public limit
-            if (finalTokenBalance > PUBLIC_MINT_LIMIT) revert MintLimitReached();
-        }
-
-        // Revert if final token balance is above public limit
-        _setAux(to, uint64(finalTokenBalance));
-
-        _mint(to, quantity);
     }
 }
