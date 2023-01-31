@@ -6,14 +6,14 @@ import "@openzeppelin/contracts/proxy/Proxy.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/StorageSlot.sol";
 
-contract ERC721Creator is Proxy {
+contract ERC721Proxy is Proxy {
     
-    constructor(string memory name, string memory symbol) {
+    constructor(string memory name, string memory symbol, bytes32 merkleRoot) {
         assert(_IMPLEMENTATION_SLOT == bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1));
-        StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = 0xEB067AfFd7390f833eec76BF0C523Cf074a7713C;
+        StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = 0x1c0f47A0Ac9a6B55EE86cb254386F1a5E56575C8;
         Address.functionDelegateCall(
-            0xEB067AfFd7390f833eec76BF0C523Cf074a7713C,
-            abi.encodeWithSignature("initialize(string,string)", name, symbol)
+            0x1c0f47A0Ac9a6B55EE86cb254386F1a5E56575C8,
+            abi.encodeWithSignature("initialize(string,string,bytes32)", name, symbol, merkleRoot)
         );
     }
         
