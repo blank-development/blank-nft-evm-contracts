@@ -12,6 +12,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.8.1",
     "erc721a": "^4.2.3",
+    "erc721a-upgradeable": "^4.2.3",
     "operator-filter-registry": "^1.4.0"
   },
   "devDependencies": {
