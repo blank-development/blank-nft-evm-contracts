@@ -1,6 +1,6 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
-const { getMerkleProof } = require('./helpers/merkleTree');
+const { getMerkleProof } = require('../helpers/merkleTree');
 
 describe('MyCollection', function() {
   let myCollection;
