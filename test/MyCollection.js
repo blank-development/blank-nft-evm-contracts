@@ -1,11 +1,26 @@
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
-const { getMerkleProof } = require('../helpers/merkleTree');
+const { getMerkleProof } = require('./helpers/merkleTree');
 
 describe('MyCollection', function() {
   let myCollection;
   let tokenPrice, tokenMaxSupply;
   let whitelistMintLimit, publicMintLimit;
+
+  const whitelist = [
+    '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
+    '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
+    '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65',
+    '0x9460A151252F2DCd2E97c3110e1Aa371E124Fa41',
+    '0x65BdDece298B6108956bf8c2d0422619105B3b95',
+    '0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db',
+    '0x6d393B949579C9bD667CB6EE0FC06ab79088Bd95',
+    '0x35F9e6afAEff89A38bd0cB5c7E6B18a54b956115',
+    '0xd21277065b30f83185a5d65e50f9f0e532833cb5',
+    '0x3d77a01ef9265f8af731367abf5b467641764191',
+    '0xd4B399CF7B25dD140559470Cca18E6395645c0b3',
+    '0x78e7C4C88d44aD2178a2Cf5cC8883a761996e2E9',
+  ];
 
   beforeEach(async function() {
     [
@@ -41,7 +56,7 @@ describe('MyCollection', function() {
         await expect(
           myCollection
             .connect(whitelisted1)
-            .mint(1, getMerkleProof(whitelisted1.address), {
+            .mint(1, getMerkleProof(whitelist, whitelisted1.address), {
               value: tokenPrice,
             }),
         ).to.be.revertedWithCustomError(myCollection, 'MintingDisabled');
@@ -53,7 +68,7 @@ describe('MyCollection', function() {
         await expect(
           myCollection
             .connect(whitelisted1)
-            .mint(1, getMerkleProof(whitelisted1.address), {
+            .mint(1, getMerkleProof(whitelist, whitelisted1.address), {
               value: tokenPrice.sub(1),
             }),
         ).to.be.revertedWithCustomError(myCollection, 'InvalidValueProvided');
@@ -67,9 +82,13 @@ describe('MyCollection', function() {
         await expect(
           myCollection
             .connect(whitelisted1)
-            .mint(wantedNumberOfTokens, getMerkleProof(whitelisted1.address), {
-              value: tokenPrice.mul(wantedNumberOfTokens),
-            }),
+            .mint(
+              wantedNumberOfTokens,
+              getMerkleProof(whitelist, whitelisted1.address),
+              {
+                value: tokenPrice.mul(wantedNumberOfTokens),
+              },
+            ),
         ).to.be.revertedWithCustomError(myCollection, 'NoMoreTokensLeft');
       });
     });
@@ -89,7 +108,9 @@ describe('MyCollection', function() {
 
         await myCollection
           .connect(whitelisted1)
-          .mint(1, getMerkleProof(whitelisted1.address), { value: tokenPrice });
+          .mint(1, getMerkleProof(whitelist, whitelisted1.address), {
+            value: tokenPrice,
+          });
 
         expect(await myCollection.balanceOf(whitelisted1.address)).to.equal(1);
         expect(await myCollection.amountMinted(whitelisted1.address)).to.equal(
@@ -103,9 +124,13 @@ describe('MyCollection', function() {
         await expect(
           myCollection
             .connect(whitelisted1)
-            .mint(wantedNumberOfTokens, getMerkleProof(whitelisted1.address), {
-              value: tokenPrice.mul(wantedNumberOfTokens),
-            }),
+            .mint(
+              wantedNumberOfTokens,
+              getMerkleProof(whitelist, whitelisted1.address),
+              {
+                value: tokenPrice.mul(wantedNumberOfTokens),
+              },
+            ),
         ).to.be.revertedWithCustomError(myCollection, 'MintLimitReached');
       });
 
@@ -113,7 +138,7 @@ describe('MyCollection', function() {
         await expect(
           myCollection
             .connect(notWhitelisted)
-            .mint(1, getMerkleProof(notWhitelisted.address), {
+            .mint(1, getMerkleProof(whitelist, notWhitelisted.address), {
               value: tokenPrice,
             }),
         ).to.be.revertedWithCustomError(myCollection, 'NotWhitelisted');
@@ -123,7 +148,7 @@ describe('MyCollection', function() {
         await expect(
           myCollection
             .connect(notWhitelisted)
-            .mint(1, getMerkleProof(whitelisted1.address), {
+            .mint(1, getMerkleProof(whitelist, whitelisted1.address), {
               value: tokenPrice,
             }),
         ).to.be.revertedWithCustomError(myCollection, 'NotWhitelisted');
@@ -133,7 +158,7 @@ describe('MyCollection', function() {
         await expect(
           myCollection
             .connect(whitelisted1)
-            .mint(1, getMerkleProof(whitelisted2.address), {
+            .mint(1, getMerkleProof(whitelist, whitelisted2.address), {
               value: tokenPrice,
             }),
         ).to.be.revertedWithCustomError(myCollection, 'NotWhitelisted');
@@ -344,7 +369,7 @@ describe('MyCollection', function() {
         await myCollection.toggleWhitelistOnly();
         await myCollection
           .connect(whitelisted1)
-          .mint(1, getMerkleProof(whitelisted1.address), {
+          .mint(1, getMerkleProof(whitelist, whitelisted1.address), {
             value: tokenPrice.mul(1),
           });
 
