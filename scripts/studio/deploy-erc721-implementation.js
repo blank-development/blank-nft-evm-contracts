@@ -9,6 +9,11 @@ async function main() {
   );
   const implementation = await ERC721Implementation.deploy();
   await implementation.deployed();
+  await implementation.initialize(
+    'Blank NFT Studio',
+    'BLANK',
+    '0x0000000000000000000000000000000000000000000000000000000000000000',
+  );
 
   console.log(
     'Success! ERC721Implementation was deployed to: ',
